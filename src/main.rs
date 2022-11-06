@@ -4,7 +4,11 @@
 #![feature(alloc_error_handler)]
 
 use core::{fmt::Write, panic::PanicInfo};
-use uefi::{prelude::*, proto::console::pointer::Pointer, table::boot::LoadImageSource};
+use uefi::{
+    prelude::*,
+    proto::console::pointer::Pointer,
+    table::boot::{LoadImageSource, SearchType},
+};
 
 static mut SYSTEM_TABLE: Option<SystemTable<Boot>> = None;
 
@@ -25,6 +29,12 @@ fn efi_main(image: Handle, system_table: SystemTable<Boot>) -> Status {
         )
         .unwrap();
     bt().start_image(driver).unwrap();
+    let all_handles = bt().locate_handle_buffer(SearchType::AllHandles).unwrap();
+    for handle in all_handles.handles() {
+        // Ignore errors; not all handles will have a new driver to
+        // connect.
+        let _ = bt().connect_controller(*handle, None, None, true);
+    }
 
     let handle = bt().get_handle_for_protocol::<Pointer>().unwrap();
     let mut pointer = bt().open_protocol_exclusive::<Pointer>(handle).unwrap();
